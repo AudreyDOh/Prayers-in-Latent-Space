@@ -59,24 +59,36 @@ main {
 }
 #controls { display: none; }
 #wish-input label { display: none; }
+#wish-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin: 16px auto;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #333333;
+  border-radius: 6px;
+  width: fit-content;
+}
 #wish-input input {
-  background: #000000;
-  color: #ffffff;
-  border: 1px solid #ffffff;
+  background: #ffffff;
+  color: #333333;
+  border: 1px solid #555555;
   padding: 8px 10px;
   border-radius: 4px;
 }
 #wish-input input::placeholder {
-  color: #bdbdbd;
+  color: #888888;
 }
 #wish-input button {
   background: transparent;
-  color: #ffffff;
-  border: 1px solid #ffffff;
+  color: #333333;
+  border: 1px solid #555555;
   padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
 }
 #wish-input button:hover {
-  background: rgba(255,255,255,0.08);
+  background: #f5f5f5;
 }
