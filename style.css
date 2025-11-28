@@ -59,17 +59,22 @@ main {
 }
 #controls { display: none; }
 #wish-input label { display: none; }
+#top-block {
+  width: 100%;
+  background: #ffffff;
+  color: #333333;
+  padding: 16px 0;
+  border-bottom: 1px solid #e6e6e6;
+}
 #wish-input {
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: center;
   margin: 16px auto;
-  padding: 10px 12px;
-  background: #ffffff;
-  color: #333333;
-  border-radius: 6px;
-  width: fit-content;
+  padding: 6px 8px;
+  background: transparent;
+  width: 100%;
 }
 #wish-input input {
   background: #ffffff;
@@ -92,3 +97,4 @@ main {
 #wish-input button:hover {
   background: #f5f5f5;
 }
+#canvas-container { background: #000000; }
