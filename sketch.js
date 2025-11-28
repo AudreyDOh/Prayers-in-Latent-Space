@@ -94,12 +94,16 @@ window.addEventListener('DOMContentLoaded', () => {
       submitBtn.textContent = 'Submit';
       submitBtn.style.opacity = '1';
     }
-    // Hide preload overlay
+    // Hide preload overlay after a 5s delay
     try {
       const preload = document.getElementById('preload');
       if (preload) {
-        preload.classList.add('hidden');
-        setTimeout(() => { try { preload.remove(); } catch (_) {} }, 600);
+        setTimeout(() => {
+          try {
+            preload.classList.add('hidden');
+            setTimeout(() => { try { preload.remove(); } catch (_) {} }, 600);
+          } catch (_) {}
+        }, 5000);
       }
     } catch (_) {}
     console.log('Application ready - submit button enabled');
