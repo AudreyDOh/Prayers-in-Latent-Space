@@ -1,11 +1,7 @@
+
+// Three.js + Firestore-based implementation of the deity UMAP and wish beams
 import * as THREE from 'https://esm.sh/three@0.160.0';
 import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-import { EXRLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/EXRLoader.js';
-
-// Firebase v10 modular CDN imports
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getDatabase, ref as dbRef, push, set, onChildAdded, onChildChanged, onChildRemoved, serverTimestamp, update, remove, query, orderByChild, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
 // ----- Firebase Setup -----
 const firebaseConfig = {
@@ -16,1007 +12,961 @@ const firebaseConfig = {
   messagingSenderId: "747240210613",
   appId: "1:747240210613:web:7a7d0b22e30d65148dbefc",
   measurementId: "G-07HRBV3H36",
-  databaseURL: "https://audreysharedminds25-default-rtdb.firebaseio.com"
+  databaseURL: "https://audreysharedminds25-default-rtdb.firebaseio.com" // REQUIRED for Realtime Database!
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const rtdb = getDatabase(app);
-
-// ----- Replicate Proxy Config (fill in via window.setReplicateToken / setReplicateVersion) -----
-const REPLICATE_PROXY_URL = 'https://itp-ima-replicate-proxy.web.app/api/create_n_get';
-let REPLICATE_TOKEN = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjdlYTA5ZDA1NzI2MmU2M2U2MmZmNzNmMDNlMDRhZDI5ZDg5Zjg5MmEiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiQXVkcmV5IE9oIiwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0xvdEVlUWNJZWNfUndLQ3I4b2tiT0hoel9ERWMwcjZsVWZITHZJZlJKdGt6R3I9czk2LWMiLCJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vaXRwLWltYS1yZXBsaWNhdGUtcHJveHkiLCJhdWQiOiJpdHAtaW1hLXJlcGxpY2F0ZS1wcm94eSIsImF1dGhfdGltZSI6MTc2MTcxODAzMiwidXNlcl9pZCI6Im1DRXhacVlYTFFZZHZianFwTWxCeUtYNmo5WjIiLCJzdWIiOiJtQ0V4WnFZWExRWWR2YmpxcE1sQnlLWDZqOVoyIiwiaWF0IjoxNzYxNzE4MDMyLCJleHAiOjE3NjE3MjE2MzIsImVtYWlsIjoiZG83NzJAbnl1LmVkdSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7Imdvb2dsZS5jb20iOlsiMTExNzk1Njc2Njc5MDMxNTIyNTY3Il0sImVtYWlsIjpbImRvNzcyQG55dS5lZHUiXX0sInNpZ25faW5fcHJvdmlkZXIiOiJnb29nbGUuY29tIn19.fNEsE29XkcKe1nw6wLMbaTI184IO9wXqhmfTCsDBwFBh-sTpAI9LLY0rY6Eo3gVfKZ86PJlrwcWCfGVyJhJD2UJFO4jkNxQfE7tgEalbyIzmksOtiu3vFHAOO_W4wxQ0E2W2O4_MstGKgZEfbtLymmeCdSw3-eBwe1tufAF-OIa419Fkwgvhr-2WYLpUYTicbeOA4DUhLVz56YJ1oGdkjtXhMA1aA_Z1lLdgwTi9zVEqEUftSqEkO7opUdOYJprN_aePcjbC-qiL4PAKC0LXhkkZZKSz6My5yDPHKFtSgbOZ0KepCgw2QYoGXhdASY_1Y_KZSxexlslT4qADGqlCDA';
-let REPLICATE_VERSION = 'openai/gpt-5-nano';
-// Allow setting credentials from console or external script like Week 4
-window.setReplicateToken = (t) => { REPLICATE_TOKEN = t || 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjdlYTA5ZDA1NzI2MmU2M2U2MmZmNzNmMDNlMDRhZDI5ZDg5Zjg5MmEiLCJ0eXAiOiJKV1QifQ.eyJuYW1lIjoiQXVkcmV5IE9oIiwicGljdHVyZSI6Imh0dHBzOi8vbGgzLmdvb2dsZXVzZXJjb250ZW50LmNvbS9hL0FDZzhvY0xvdEVlUWNJZWNfUndLQ3I4b2tiT0hoel9ERWMwcjZsVWZITHZJZlJKdGt6R3I9czk2LWMiLCJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vaXRwLWltYS1yZXBsaWNhdGUtcHJveHkiLCJhdWQiOiJpdHAtaW1hLXJlcGxpY2F0ZS1wcm94eSIsImF1dGhfdGltZSI6MTc2MTcxMTU4OCwidXNlcl9pZCI6Im1DRXhacVlYTFFZZHZianFwTWxCeUtYNmo5WjIiLCJzdWIiOiJtQ0V4WnFZWExRWWR2YmpxcE1sQnlLWDZqOVoyIiwiaWF0IjoxNzYxNzExNTg4LCJleHAiOjE3NjE3MTUxODgsImVtYWlsIjoiZG83NzJAbnl1LmVkdSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJmaXJlYmFzZSI6eyJpZGVudGl0aWVzIjp7Imdvb2dsZS5jb20iOlsiMTExNzk1Njc2Njc5MDMxNTIyNTY3Il0sImVtYWlsIjpbImRvNzcyQG55dS5lZHUiXX0sInNpZ25faW5fcHJvdmlkZXIiOiJnb29nbGUuY29tIn19.Qdid0hkrqijtWqFc6ElRYbtgSoJujLw5i-aCEDd2c31ZmIzyc6re75KSfTX4C5n4A2RPKD3kdjuqE71_UiNu6OcNC9ierPhUjvY9OfIgaMSVmDhdG0on0skmu23qzttoRKPFlq0wNmQE13m5c13VlmNC3CwQQm5HQI8JzKYLy-k9GE6jZSEWGcqfPfUS9iG3lNvpG8ngS3b3NMQgOVi-WaAa_Ap11BNaf4llWLb45JnXfxcT7k2ab0pH87wHK5BvzeDz5KHEv8H2rmRaMj33S3pSRANj3aa5xWWSuM_sN8gLx2eD7cP8psnhZhYpbhGWHo7Noxm8bfJYO_1NJXcH9w'; };
-window.setReplicateVersion = (v) => { REPLICATE_VERSION = v || 'openai/gpt-5-nano'; };
-let EMBED_VERSION = 'beautyyuyanli/multilingual-e5-large:a06276a89f1a902d5fc225a9ca32b6e8e6292b7f3b136518878da97c458e2bad';
-window.setEmbedVersion = (v) => { EMBED_VERSION = v || EMBED_VERSION; };
-let OFFLINE_MERGE = true; // default to offline to avoid quota issues; toggle via console
-window.setOfflineMerge = (v) => { OFFLINE_MERGE = !!v; };
-
-// Replicate call throttling (avoid 429s)
-const REP_MAX_CONCURRENCY = 1;
-let repInFlight = 0;
-const repQueue = [];
-function scheduleReplicateCall(body, token) {
-  return new Promise((resolve, reject) => {
-    repQueue.push({ body, token, resolve, reject });
-    processRepQueue();
-  });
+// Initialize Firebase when it's ready
+let db;
+if (typeof firebase !== 'undefined') {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} else {
+  console.error('Firebase not loaded yet');
 }
-function processRepQueue() {
-  if (repInFlight >= REP_MAX_CONCURRENCY || repQueue.length === 0) return;
-  const job = repQueue.shift();
-  repInFlight++;
-  doFetchWithRetry(job.body, job.token, 3).then((json) => {
-    repInFlight--; processRepQueue(); job.resolve(json);
-  }).catch((e) => { repInFlight--; processRepQueue(); job.reject(e); });
-}
-window.REPLICATE_DEBUG = true;
-window.debugAverage = async (a, b) => {
-  const out = await averageThoughtAsync(a, b);
-  console.log('[debugAverage]', { a, b, out });
-  return out;
-};
 
-// ----- DOM -----
-const container = document.getElementById('three-container');
-const thoughtInput = document.getElementById('thoughtInput');
-const submitButton = document.getElementById('submitThought');
-const signInBtn = document.getElementById('googleSignIn');
-const signOutBtn = document.getElementById('signOut');
-const userInfo = document.getElementById('userInfo');
-let triedAnon = false;
+// ----- Global State -----
+let entities = [];
+let umapResults = [];
+let axisProj = null; // { x: number[], y: number[], z: number[] }
+let embeddingsReady = false;
+let deitiesGroup;
+let beamsGroup;
+let deityMeshes = [];
+let entityIndexToMesh = new Map();
+let renderer, scene, camera, controls, raycaster, mouse;
+let container, tooltipEl;
+let explainEl;
+let minX, maxX, minY, maxY;
+let userZ = 200; // user plane z
+let userDot;
+let wishDocIdToBeam = new Map();
+let deityIndexToHalo = new Map();
+let deityCounts = new Map();
+let activeBeamAnimations = new Set();
+let ritualRings = [];
+let matchPulse = null;
+let typingLastTs = 0;
+let typingHalo = null;
+let cameraAnim = null; // {startPos, startTarget, endPos, endTarget, t0, dur}
 
-signInBtn.addEventListener('click', async () => {
-  try {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-  } catch (e) {
-    console.error(e);
-    alert('Sign-in failed. See console.');
+// ----- Initialization -----
+window.addEventListener('DOMContentLoaded', () => {
+  container = document.getElementById('canvas-container');
+  tooltipEl = document.getElementById('tooltip');
+  explainEl = document.getElementById('explain-card');
+  // Disable submit until ready
+  const submitBtn = document.getElementById('submitWish');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Loading...';
+    submitBtn.style.opacity = '0.5';
   }
-});
-
-signOutBtn.addEventListener('click', async () => {
-  await signOut(auth);
-});
-
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    const name = user.isAnonymous ? 'Anonymous' : (user.displayName || user.email);
-    userInfo.textContent = `Signed in as ${name}`;
-    signInBtn.style.display = 'none';
-    signOutBtn.style.display = 'inline-block';
-    submitButton.disabled = false;
-  } else {
-    userInfo.textContent = '';
-    signInBtn.style.display = 'inline-block';
-    signOutBtn.style.display = 'none';
-    submitButton.disabled = true;
-    if (!triedAnon) {
-      triedAnon = true;
-      signInAnonymously(auth).catch((e) => {
-        console.warn('Anonymous sign-in failed', e);
-      });
+  
+  // Check if Firebase is available
+  if (typeof firebase === 'undefined') {
+    console.error('Firebase not loaded. Please check script loading order.');
+    return;
+  }
+  
+  // Initialize Firebase if not already done
+  if (!db) {
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+      console.log('Firebase initialized successfully');
+    } catch (error) {
+      console.error('Firebase initialization failed:', error);
+      return;
     }
   }
+  
+  initializeEntities();
+  assignDomainColors();
+  fetchAllEmbeddings().then(() => {
+    embeddingsReady = true;
+    setupThree();
+    updateMap();
+    wireUI();
+    subscribeBeams();
+    // Enable submit now that everything is ready
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit';
+      submitBtn.style.opacity = '1';
+    }
+    console.log('Application ready - submit button enabled');
+  }).catch(error => {
+    console.error('Failed to initialize application:', error);
+  });
 });
 
-submitButton.addEventListener('click', async () => {
-  const text = (thoughtInput.value || '').trim();
-  if (!text) return;
-  const user = auth.currentUser;
-  if (!user) { alert('Please sign in first.'); return; }
-  try {
-    const thoughtsRef = dbRef(rtdb, 'thoughts');
-    const newRef = push(thoughtsRef);
-    await set(newRef, {
-      text,
-      uid: user.uid,
-      displayName: user.displayName || null,
-      createdAt: serverTimestamp(),
-      // initial position: random in expanded bounds (disk), mild random Z
-      pos: randomSpawnPosObj()
+function wireUI() {
+  // Hide power/domain slider controls
+  const sliderControl = document.getElementById('powerWeight');
+  if (sliderControl && sliderControl.parentElement) {
+    sliderControl.parentElement.style.display = 'none';
+  }
+  
+  document.getElementById('submitWish').addEventListener('click', onSubmitWish);
+  const input = document.getElementById('wishText');
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onSubmitWish();
+    }
+  });
+
+  // typing listeners for wish input
+  const wishInput = document.getElementById('wishText');
+  wishInput.addEventListener('input', () => {
+    typingLastTs = performance.now();
+    ensureTypingFocusCamera();
+  });
+  wishInput.addEventListener('focus', () => {
+    typingLastTs = performance.now();
+    ensureTypingFocusCamera();
+  });
+}
+
+function handleSliderInput() {
+  // Slider removed - function kept for compatibility but does nothing
+}
+
+function initializeEntities() {
+  entities = [...(window.expandedEntitiesDatabase || [])];
+    console.log(`Loaded ${entities.length} mythological entities`);
+}
+
+function assignDomainColors() {
+    const domainColors = {
+    'sea': 0x0066cc,
+    'sky': 0x87cefa,
+    'fire': 0xdc143c,
+    'sun': 0xffd700,
+    'land': 0x8b4513,
+    'underworld': 0x4b0082,
+    'death': 0x696969,
+    'love': 0xff69b4,
+    'war': 0xb22222,
+    'wisdom': 0x9400d3,
+    'trickster': 0x32cd32,
+    'creator': 0xfffafa,
+    'magic': 0xda70d6,
+    'art': 0x00bfff,
+    'dragon': 0xd2691e,
+    'moon': 0xc8c8ff,
+    'earth': 0x654321,
+    'wind': 0xe6e6fa,
+    'water': 0x00bfff,
+    'forest': 0x228b22,
+    'mountain': 0x8b8989,
+    'storm': 0x696969,
+    'fertility': 0xffc0cb,
+    'hunting': 0xa0522d,
+    'crafts': 0xff8c00,
+    'justice': 0xffffff,
+    'chaos': 0x4b0082,
+    'order': 0xffff00,
+    'transformation': 0x800080,
+    'beauty': 0xffb6c1,
+    'wealth': 0xffd700,
+    'home': 0x8b4513,
+    'destruction': 0x8b0000,
+    'protection': 0x006400,
+    'speed': 0xffa500,
+    'longevity': 0x808080,
+    'sacred': 0xffffe0,
+    'freedom': 0x00bfff,
+    'purity': 0xffffff,
+    'mystery': 0x4b0082,
+    'cosmos': 0x191970
+    };
+
+    entities.forEach((entity, idx) => {
+        // Create different shades of red for each deity
+        // Vary hue slightly around red (0), and vary saturation and lightness
+        const seed = hash32(entity.name);
+        const hueVariation = ((seed % 30) / 30 - 0.5) * 0.08; // Slight variation around pure red
+        const hue = (0 + hueVariation + 1) % 1; // Keep in red range (wrapping around 1.0)
+        const saturation = 0.4 + ((seed >> 8) % 40) / 100; // 0.4 to 0.8
+        const lightness = 0.5 + ((seed >> 16) % 35) / 100; // 0.5 to 0.85
+        
+        entity.displayColor = new THREE.Color();
+        entity.displayColor.setHSL(hue, saturation, lightness);
     });
-    thoughtInput.value = '';
-  } catch (e) {
-    console.error('Failed to add thought', e);
-  }
-});
+}
 
-// Enter key submits the thought (same as clicking the button)
-thoughtInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    submitButton.click();
+// Helper function to clear old embedding cache if storage is full
+function clearEmbeddingCache() {
+  try {
+    const keys = Object.keys(localStorage);
+    const embeddingKeys = keys.filter(key => key.startsWith('embedding_'));
+    embeddingKeys.forEach(key => localStorage.removeItem(key));
+    console.log('Cleared', embeddingKeys.length, 'cached embeddings');
+  } catch (error) {
+    console.warn('Failed to clear embedding cache:', error.message);
   }
-});
+}
+
+async function fetchAllEmbeddings() {
+  console.log('Generating embeddings for all entities...');
+  for (let entity of entities) {
+    const cacheKey = `embedding_${entity.name}`;
+    let cachedEmbeddings = null;
+    
+    // Try to get cached embeddings, but don't fail if localStorage is unavailable
+    try {
+      cachedEmbeddings = localStorage.getItem(cacheKey);
+    } catch (error) {
+      console.warn('localStorage unavailable, generating embeddings without cache:', error.message);
+    }
+    
+    if (cachedEmbeddings) {
+      try {
+        const embeddings = JSON.parse(cachedEmbeddings);
+        [entity.personalityEmbedding, entity.powerEmbedding, entity.domainEmbedding] = embeddings;
+      } catch (error) {
+        console.warn('Failed to parse cached embeddings for', entity.name, ':', error.message);
+        cachedEmbeddings = null; // Force regeneration
+      }
+    }
+    
+    if (!cachedEmbeddings) {
+      entity.personalityEmbedding = generateDeterministicEmbedding(entity.name + entity.personality);
+      entity.powerEmbedding = generateDeterministicEmbedding(entity.name + entity.power);
+      entity.domainEmbedding = generateDeterministicEmbedding(entity.name + entity.domain);
+      
+      // Try to cache embeddings, but don't fail if storage is full
+      try {
+        const embeddings = [entity.personalityEmbedding, entity.powerEmbedding, entity.domainEmbedding];
+        localStorage.setItem(cacheKey, JSON.stringify(embeddings));
+      } catch (error) {
+        console.warn('Failed to cache embeddings for', entity.name, ':', error.message);
+        // If quota exceeded, clear old cache and try once more
+        if (error.name === 'QuotaExceededError') {
+          console.log('Storage quota exceeded, clearing old cache...');
+          clearEmbeddingCache();
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(embeddings));
+            console.log('Successfully cached after clearing old data');
+          } catch (retryError) {
+            console.warn('Still unable to cache after clearing:', retryError.message);
+          }
+        }
+        // Continue without caching - the app will still work
+      }
+    }
+  }
+  console.log('All embeddings generated!');
+}
+
+function generateDeterministicEmbedding(text) {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const embedding = [];
+  for (let i = 0; i < 768; i++) {
+    const seed = (hash + i * 31) % 2147483647;
+    embedding.push((seed / 2147483647) * 2 - 1);
+  }
+  return embedding;
+}
+
+function getBlendedEmbeddings() {
+  // Concatenate power and domain embeddings; personality excluded
+  // Fixed weights: 50/50 split between power and domain
+  const W2 = 0.5; // power weight
+  const W3 = 0.5; // domain weight
+  return entities.map(entity => {
+    const power = entity.powerEmbedding;
+    const domain = entity.domainEmbedding;
+    const concat = new Array(power.length + domain.length);
+    for (let i = 0; i < power.length; i++) concat[i] = power[i] * W2;
+    for (let j = 0; j < domain.length; j++) concat[power.length + j] = domain[j] * W3;
+    return concat;
+  });
+}
+
+// Project power and domain separately to 2D each, marry them into XYZ axes:
+// X: 1D power coordinate (UMAP to 1D), Y: 1D domain coordinate (UMAP to 1D), Z: combined 1D bridge (UMAP on concatenated) for depth
+function computeAxisProjections() {
+  // Build separate sets
+  const powerSet = entities.map(e => e.powerEmbedding);
+  const domainSet = entities.map(e => e.domainEmbedding);
+  const concatSet = getBlendedEmbeddings();
+
+  // Helper to get 1D UMAP ordering/coordinate
+  const oneD = (vectors) => {
+    const u = new UMAP({ 
+      n_neighbors: Math.min(15, entities.length - 1), 
+      n_components: 1, 
+      min_dist: 0.35, 
+      n_epochs: 250, 
+      metric: 'cosine'
+    });
+    u.fit(vectors);
+    const emb = u.getEmbedding(); // shape N x 1
+    return emb.map(row => row[0]);
+  };
+
+  const xCoord = oneD(powerSet);
+  const yCoord = oneD(domainSet);
+  // Depth from concatenated vector 1D
+  const zCoord = oneD(concatSet);
+
+  // Normalize each axis (0..1) then center later during placement
+  const norm = (arr) => {
+    let minV = Infinity, maxV = -Infinity;
+    for (let v of arr) { if (v < minV) minV = v; if (v > maxV) maxV = v; }
+    const span = Math.max(1e-6, maxV - minV);
+    return arr.map(v => (v - minV) / span);
+  };
+
+  const X = norm(xCoord);
+  const Y = norm(yCoord);
+  const Z = norm(zCoord);
+
+  // Add tiny deterministic jitter to break ties
+  for (let i = 0; i < X.length; i++) {
+    const seed = hash32(entities[i].name);
+    X[i] += ((seed % 97) / 97 - 0.5) * 0.01;
+    Y[i] += (((seed >> 7) % 101) / 101 - 0.5) * 0.01;
+    Z[i] += (((seed >> 13) % 89) / 89 - 0.5) * 0.01;
+  }
+
+  return { x: X, y: Y, z: Z };
+}
+
+function updateMap() {
+  axisProj = computeAxisProjections();
+  computeExtents();
+  placeDeities();
+}
+
+function hash32(str) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function computeExtents() {
+  minX = Infinity; maxX = -Infinity; minY = Infinity; maxY = -Infinity; let minZ = Infinity; let maxZ = -Infinity;
+  const xs = axisProj?.x || [];
+  const ys = axisProj?.y || [];
+  const zs = axisProj?.z || [];
+  for (let i = 0; i < xs.length; i++) { minX = Math.min(minX, xs[i]); maxX = Math.max(maxX, xs[i]); }
+  for (let i = 0; i < ys.length; i++) { minY = Math.min(minY, ys[i]); maxY = Math.max(maxY, ys[i]); }
+  for (let i = 0; i < zs.length; i++) { minZ = Math.min(minZ, zs[i]); maxZ = Math.max(maxZ, zs[i]); }
+  window.__umapExtents = { minX, maxX, minY, maxY, minZ, maxZ };
+}
+
+function placeDeities() {
+  const [w, h] = [container.clientWidth, container.clientHeight];
+  const margin = 50;
+  const { minX, maxX, minY, maxY, minZ, maxZ } = window.__umapExtents || {};
+  const spanX = Math.max(1e-6, (maxX - minX));
+  const spanY = Math.max(1e-6, (maxY - minY));
+  const spanZ = Math.max(1e-6, (maxZ - minZ));
+
+  // Scene spans
+  const toX = v => ((v - minX) / spanX) * (w - margin * 2) + margin - w / 2;
+  const toY = v => ((v - minY) / spanY) * (h - margin * 2) + margin - h / 2;
+  const depth = Math.min(w, h); // keep z proportional to viewport
+  const toZ = v => ((v - minZ) / spanZ) * depth - depth / 2;
+
+  if (!deitiesGroup || !axisProj) return;
+
+  if (deityMeshes.length === 0) {
+    for (let i = 0; i < entities.length; i++) {
+      // Create a group for each deity (core + glow)
+      const deityGroup = new THREE.Group();
+      
+      // Inner core sphere
+      const sphereGeo = new THREE.SphereGeometry(5, 16, 16);
+      const mat = new THREE.MeshBasicMaterial({ 
+        color: entities[i].displayColor, 
+        transparent: true, 
+        opacity: 0.75,
+        blending: THREE.AdditiveBlending
+      });
+      const mesh = new THREE.Mesh(sphereGeo, mat);
+      deityGroup.add(mesh);
+      
+      // Outer glow layers (multiple layers for smoother glow)
+      for (let layer = 1; layer <= 3; layer++) {
+        const glowSize = 5 + (layer * 2.5);
+        const glowGeo = new THREE.SphereGeometry(glowSize, 16, 16);
+        const glowOpacity = 0.15 / layer; // Fade out with each layer
+        const glowMat = new THREE.MeshBasicMaterial({
+          color: entities[i].displayColor,
+          transparent: true,
+          opacity: glowOpacity,
+          blending: THREE.AdditiveBlending,
+          side: THREE.BackSide // Render inside-out for better glow effect
+        });
+        const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+        deityGroup.add(glowMesh);
+      }
+      
+      deityGroup.userData.entityIndex = i;
+      deitiesGroup.add(deityGroup);
+      deityMeshes.push(deityGroup);
+      entityIndexToMesh.set(i, deityGroup);
+    }
+  }
+
+  deityMeshes.forEach((mesh, i) => {
+    const x = toX(axisProj.x[i]);
+    const y = toY(axisProj.y[i]);
+    const z = toZ(axisProj.z[i]);
+    mesh.position.set(x, -y, z);
+  });
+}
 
 // ----- Three.js Scene -----
-let scene, camera, renderer, controls, raycaster, mouse, clock;
-let metaballGroup;
-let labelsLayer;
-const blobs = new Map(); // id -> { mesh, material, velocity, text, labelEl }
-// Cursor world position must be initialized before first animate() call
-const cursorWorld = new THREE.Vector3();
-const activeMerges = new Set(); // sticky merges in progress
-let viewBounds = { halfW: 400, halfH: 250 }; // updated on init/resize
-let cursorInside = false;
-const recentMergePairs = new Map(); // pairKey -> timestamp to prevent rapid re-merging
-let manualThoughtCount = 0;
-let derivedThoughtCount = 0;
-const existingDerivedPairs = new Set(); // normalized pair keys already materialized as derived thoughts
-const MAX_THOUGHTS_RENDER = 60; // show only the most recent N
-const BOUNDS_SCALE = 1.8; // expand world bounds beyond visible frame
-
-initThree();
-subscribeThoughts();
-animate();
-
-function initThree() {
+function setupThree() {
   scene = new THREE.Scene();
-  //scene.background = null;
+  scene.background = new THREE.Color(0x000008);
 
-  const w = container.clientWidth;
-  const h = container.clientHeight;
-  camera = new THREE.PerspectiveCamera(60, w/h, 0.1, 5000);
-  camera.position.set(0, 0, 220);
+  const [w, h] = [container.clientWidth, container.clientHeight];
+  camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 5000);
+  camera.position.set(0, 0, 600);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
-  // enable physically-based tonemapping for HDRI
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.minDistance = 100;
+  controls.maxDistance = 2000;
 
-  const light = new THREE.AmbientLight(0xaab0ff, 0.6);
-  scene.add(light);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-  dir.position.set(1, 1, 1);
-  scene.add(dir);
+  // Groups
+  deitiesGroup = new THREE.Group();
+  scene.add(deitiesGroup);
 
-  // group for metaballs
-  metaballGroup = new THREE.Group();
-  scene.add(metaballGroup);
+  beamsGroup = new THREE.Group();
+  scene.add(beamsGroup);
 
-  // labels container
-  labelsLayer = document.createElement('div');
-  labelsLayer.style.position = 'absolute';
-  labelsLayer.style.left = '0';
-  labelsLayer.style.top = '0';
-  labelsLayer.style.width = '100%';
-  labelsLayer.style.height = '100%';
-  labelsLayer.style.pointerEvents = 'none';
-  container.appendChild(labelsLayer);
+  // User dot
+  const userGeo = new THREE.SphereGeometry(7, 16, 16);
+  const userMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  userDot = new THREE.Mesh(userGeo, userMat);
+  userDot.position.set(0, 0, userZ);
+  scene.add(userDot);
+
+  // Typing halo (gentle glow ring)
+  const haloGeo = new THREE.RingGeometry(14, 26, 64);
+  const haloMat = new THREE.MeshBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.0, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+  typingHalo = new THREE.Mesh(haloGeo, haloMat);
+  typingHalo.rotation.x = Math.PI / 2;
+  typingHalo.visible = false;
+  scene.add(typingHalo);
+
+  // Stars background
+  addStars();
 
   raycaster = new THREE.Raycaster();
   mouse = new THREE.Vector2();
-  clock = new THREE.Clock();
-
-  // Load EXR environment for lighting/reflections (keeps background transparent)
-  try {
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    pmrem.compileEquirectangularShader();
-    new EXRLoader()
-      .load('./sunset_fairway_4k (1).exr', (hdr) => {
-        const env = pmrem.fromEquirectangular(hdr).texture;
-        hdr.dispose();
-        pmrem.dispose();
-        scene.environment = env; // reflections/lighting only
-        // scene.background = env; // uncomment to show EXR backdrop
-      });
-  } catch (e) { console.warn('EXR load failed', e); }
-
-  // compute initial bounds in world units at z≈0 plane
-  computeViewBounds();
+  renderer.domElement.addEventListener('mousemove', onMouseMove);
 
   window.addEventListener('resize', onResize);
-  renderer.domElement.addEventListener('mousemove', onMouseMove);
-  renderer.domElement.addEventListener('mouseenter', () => { cursorInside = true; });
-  renderer.domElement.addEventListener('mouseleave', () => { cursorInside = false; });
-  renderer.domElement.addEventListener('touchstart', () => { cursorInside = true; }, { passive: true });
-  renderer.domElement.addEventListener('touchend', () => { cursorInside = false; }, { passive: true });
+  animate();
+}
+
+function addStars() {
+  const starGeo = new THREE.BufferGeometry();
+  const starCount = 800;
+  const positions = new Float32Array(starCount * 3);
+  for (let i = 0; i < starCount; i++) {
+    positions[i * 3 + 0] = (Math.random() - 0.5) * 4000;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 4000;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 4000;
+  }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const starMat = new THREE.PointsMaterial({ color: 0xaaaaee, size: 1.2, transparent: true, opacity: 0.8 });
+  const stars = new THREE.Points(starGeo, starMat);
+  scene.add(stars);
 }
 
 function onResize() {
-  const w = container.clientWidth;
-  const h = container.clientHeight;
+  const [w, h] = [container.clientWidth, container.clientHeight];
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
-  computeViewBounds();
-}
-
-function onMouseMove(e) {
-  const rect = renderer.domElement.getBoundingClientRect();
-  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-}
-
-// ----- Thoughts subscription -----
-function subscribeThoughts() {
-  const thoughtsRef = dbRef(rtdb, 'thoughts');
-  const q = query(thoughtsRef, orderByChild('createdAt'), limitToLast(MAX_THOUGHTS_RENDER));
-  onChildAdded(q, (snap) => {
-    const data = snap.val() || {};
-    // Skip rendering any previously saved derived thoughts; only show original inputs
-    if (data.derivedFrom && (data.derivedFrom.a || data.derivedFrom.b)) {
-      return;
-    }
-    addBlob(snap.key, data);
-    manualThoughtCount++;
-  });
-  onChildChanged(q, (snap) => {
-    updateBlob(snap.key, snap.val());
-  });
-  onChildRemoved(q, (snap) => {
-    removeBlob(snap.key);
-  });
-}
-
-// ----- Blob creation -----
-function createGooMaterial(color = 0x88aaff) {
-  const mat = new THREE.MeshPhysicalMaterial({
-    color,
-    roughness: 0.15,
-    metalness: 0.0,
-    transmission: 0.72, // translucency
-    thickness: 3.5,
-    transparent: true,
-    opacity: 0.95,
-    clearcoat: 0.75,
-    clearcoatRoughness: 0.18,
-    reflectivity: 0.6,
-    sheen: 0.2,
-  });
-  return mat;
-}
-
-function addBlob(id, data) {
-  if (blobs.has(id)) return;
-  const radius = (12 + Math.min(24, (data.text?.length || 0) * 0.35)) * 0.875; // size down by ~1/8
-  const geo = new THREE.IcosahedronGeometry(radius, 3);
-  const material = createGooMaterial(0xffea00);
-  const mesh = new THREE.Mesh(geo, material);
-  if (data.pos && (data.pos.x != null)) {
-    mesh.position.set(data.pos.x, data.pos.y || 0, data.pos.z || 0);
-  } else {
-    // Spawn randomly in a disk (non-grid), with spacing from existing blobs
-    const maxR = Math.min(viewBounds.halfW, viewBounds.halfH) * 0.95;
-    const minSpacing = 90;
-    let placed = false;
-    for (let tries = 0; tries < 32 && !placed; tries++) {
-      const angle = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.random()) * maxR; // uniform in disk
-      const candidate = new THREE.Vector3(Math.cos(angle) * r, Math.sin(angle) * r, (Math.random()-0.5) * 18);
-      let ok = true;
-      for (const b of blobs.values()) {
-        if (candidate.distanceTo(b.mesh.position) < (minSpacing + b.radius + radius)) { ok = false; break; }
-      }
-      if (ok) { mesh.position.copy(candidate); placed = true; }
-    }
-    if (!placed) {
-      const angle = Math.random() * Math.PI * 2; const r = maxR * 0.8;
-      mesh.position.set(Math.cos(angle)*r, Math.sin(angle)*r, 0);
-    }
-  }
-  metaballGroup.add(mesh);
-
-  const label = document.createElement('div');
-  label.className = 'label';
-  label.textContent = data.text || '';
-  labelsLayer.appendChild(label);
-
-  blobs.set(id, {
-    id,
-    mesh,
-    material,
-    velocity: initialVelocity(),
-    text: data.text || '',
-    labelEl: label,
-    radius,
-    isDerived: !!(data.derivedFrom)
-  });
-
-  // Enforce local cap to keep at most the most recent MAX_THOUGHTS_RENDER
-  enforceBubbleCap();
-}
-
-function updateBlob(id, data) {
-  const b = blobs.get(id);
-  if (!b) return;
-  if (data.text && data.text !== b.text) {
-    b.text = data.text;
-    b.labelEl.textContent = b.text;
-  }
-}
-
-function removeBlob(id) {
-  const b = blobs.get(id);
-  if (!b) return;
-  metaballGroup.remove(b.mesh);
-  b.mesh.geometry?.dispose();
-  b.material?.dispose();
-  b.labelEl?.remove();
-  blobs.delete(id);
-}
-
-function enforceBubbleCap() {
-  while (blobs.size > MAX_THOUGHTS_RENDER) {
-    const oldestId = blobs.keys().next().value;
-    removeBlob(oldestId);
-  }
-}
-
-// ----- Physics: cursor magnetism and blob merging -----
-function updateCursorWorld() {
-  if (!cursorInside) return; // do not update when cursor is outside
-  raycaster.setFromCamera(mouse, camera);
-  const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-  const hit = new THREE.Vector3();
-  raycaster.ray.intersectPlane(planeZ, hit);
-  cursorWorld.copy(hit);
+  // re-place to account for size changes
+  if (embeddingsReady && axisProj) placeDeities();
 }
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
   controls.update();
-  updateCursorWorld();
-  stepPhysics(dt);
-  updateMerges(dt);
-  updateLabels();
+  updateCameraAnim();
+  updateUserBreathing();
+  updateRitualRings();
+  updateBeamAnimations();
+  updateBeamOpacities();
+  updateMatchPulse();
+  updateTypingGlow();
   renderer.render(scene, camera);
 }
 
-function stepPhysics(dt) {
-  const kMagnet = 150; // strong magnet strength
-  const magnetRadius = 110; // tighter influence
-  const drag = 0.995; // light damping to keep motion continuous
-  const mergeDistanceFactor = 1.05; // allow merge when blobs are very close (or slightly apart)
-  const minSeparationPad = 12; // extra gap to avoid visual overlap
-
-  const arr = Array.from(blobs.values());
-  for (let i = 0; i < arr.length; i++) {
-    const a = arr[i];
-    // cursor attraction
-    const toCursor = new THREE.Vector3().subVectors(cursorWorld, a.mesh.position);
-    const d = toCursor.length();
-    a.nearCursor = cursorInside && d < magnetRadius;
-    if (a.nearCursor) {
-      const dirToCursor = toCursor.normalize();
-      const proximity = 1 - (d / magnetRadius); // 0 far, 1 very close
-      const strength = proximity * kMagnet;
-      // acceleration toward cursor
-      a.velocity.addScaledVector(dirToCursor, strength * dt);
-      // steering: stronger alignment as we get closer
-      const desiredSpeed = 20 + 60 * proximity; // 20..80
-      const desiredVel = dirToCursor.clone().multiplyScalar(desiredSpeed);
-      a.velocity.add(desiredVel.sub(a.velocity).multiplyScalar((0.35 + 0.25*proximity) * dt));
-    }
-
-    // very slow radial drift away from center (keeps the field breathing outward)
-    const pos = a.mesh.position;
-    const rLen = pos.length();
-    if (rLen > 0.001) {
-      const outDir = pos.clone().multiplyScalar(1 / rLen);
-      const baseDrift = 0.6; // very subtle
-      a.velocity.addScaledVector(outDir, baseDrift * dt);
-      // tiny wobble so paths aren't perfectly straight
-      const tNow = performance.now() * 0.0002 + a.mesh.id * 0.013;
-      a.velocity.x += Math.sin(tNow) * 0.02 * dt;
-      a.velocity.y += Math.cos(tNow * 1.3) * 0.02 * dt;
-    }
-    // Pairwise interactions
-    for (let j = i + 1; j < arr.length; j++) {
-      const b = arr[j];
-      const delta = new THREE.Vector3().subVectors(b.mesh.position, a.mesh.position);
-      const dist = delta.length();
-      if (dist < 1e-3) continue;
-      // collision/merge only when influenced by cursor
-      const mergeThreshold = (a.radius + b.radius) * mergeDistanceFactor;
-      if (dist < mergeThreshold && (a.nearCursor || b.nearCursor)) {
-        maybeStartMerge(a, b);
-      }
-      // Elastic collision bounce when NOT under cursor attraction and not merging
-      if (!(a.nearCursor || b.nearCursor) && !(a.merging || b.merging)) {
-        const targetDist = a.radius + b.radius + minSeparationPad;
-        if (dist < targetDist) {
-          resolveElasticCollision(a, b, targetDist, 0.9);
-        }
-      }
-    }
-    // viscous drag
-    a.velocity.multiplyScalar(drag);
-    // keep motion alive and bounded
-    const speed = a.velocity.length();
-    const minSpeed = 6;
-    const maxSpeed = 80;
-    if (speed < minSpeed) {
-      const factor = (speed > 1e-5) ? (minSpeed / speed) : 1;
-      a.velocity.multiplyScalar(factor);
-      if (speed <= 1e-5) {
-        // random nudge if nearly stopped
-        const ang = Math.random() * Math.PI * 2;
-        a.velocity.x += Math.cos(ang) * minSpeed * 0.5;
-        a.velocity.y += Math.sin(ang) * minSpeed * 0.5;
-      }
-    } else if (speed > maxSpeed) {
-      a.velocity.multiplyScalar(maxSpeed / speed);
-    }
-    a.mesh.position.addScaledVector(a.velocity, dt);
-    applyBounds(a);
-    // subtle wobble to feel gooey
-    const s = 1 + Math.sin((performance.now()*0.001) + a.mesh.id) * 0.02;
-    a.mesh.scale.set(s, s, s);
-  }
-}
-
-// ----- Sticky merging with dynamic bridge -----
-function maybeStartMerge(a, b) {
-  if (a.merging || b.merging) return;
-  const now = Date.now();
-  if ((a.cooldownUntil && now < a.cooldownUntil) || (b.cooldownUntil && now < b.cooldownUntil)) return;
-  const ida = a.id || a.mesh.id;
-  const idb = b.id || b.mesh.id;
-  const pairKey = ida < idb ? ida + '_' + idb : idb + '_' + ida;
-  const last = recentMergePairs.get(pairKey);
-  if (last && now - last < 2500) return; // skip if recently merged
-  // Relaxed constraints: allow merges regardless of origin (manual/derived)
-  // Keep dedupe per pair and cooldowns to prevent explosions
-  // Allow multiple derived thoughts per pair (no dedupe here)
-  const receiver = (a.radius >= b.radius) ? a : b;
-  const donor = (receiver === a) ? b : a;
-  const combinedVolume = Math.pow(receiver.radius,3) + Math.pow(donor.radius,3);
-  const bridge = createBridgeGroup(receiver, donor);
-  const merge = {
-    receiver,
-    donor,
-    bridge,
-    t: 0,
-    phase: 'bridge',
-    bridgeDuration: 1.0,
-    fuseDuration: 1.8,
-    combinedVolume,
-    startReceiverRadius: receiver.radius,
-    startDonorRadius: donor.radius,
-    startReceiverPos: receiver.mesh.position.clone(),
-    startDonorPos: donor.mesh.position.clone(),
-    wobblePhase: Math.random() * Math.PI * 2
-  };
-  receiver.merging = true;
-  donor.merging = true;
-  activeMerges.add(merge);
-}
-
-function createBridgeGroup(a, b) {
-  const group = new THREE.Group();
-  const mat = a.material.clone();
-  mat.opacity = Math.min(0.95, a.material.opacity * 0.9);
-  mat.transparent = true;
-  mat.side = THREE.DoubleSide;
-  // Illustrator-like liquid bridge using capsules along the curve
-  const segments = 18;
-  const parts = [];
-  for (let i = 0; i < segments; i++) {
-    const geo = new THREE.CapsuleGeometry(1, 1, 10, 18);
-    const m = mat.clone();
-    const mesh = new THREE.Mesh(geo, m);
-    group.add(mesh);
-    parts.push(mesh);
-  }
-  scene.add(group);
-  group.userData = { parts, segments };
-  return group;
-}
-
-function updateBridgeGroup(bridge, p1, p2, r1, r2, t, wobblePhase) {
-  const { parts, segments } = bridge.userData;
-  const mid = p1.clone().lerp(p2, 0.5);
-  const ortho = new THREE.Vector3(0,0,1).cross(new THREE.Vector3().subVectors(p2,p1)).normalize();
-  mid.addScaledVector(ortho, 8 * Math.sin((performance.now()*0.001) + wobblePhase));
-  const curve = new THREE.QuadraticBezierCurve3(p1, mid, p2);
-  const du = 1 / segments;
-  for (let i = 0; i < segments; i++) {
-    const u1 = i * du;
-    const u2 = Math.min(1, (i+1) * du);
-    const pA = curve.getPoint(u1);
-    const pB = curve.getPoint(u2);
-    const center = pA.clone().add(pB).multiplyScalar(0.5);
-    const dir = pB.clone().sub(pA);
-    const len = Math.max(0.001, dir.length());
-    const tangent = dir.clone().normalize();
-    const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), tangent);
-    const uMid = (u1 + u2) * 0.5;
-    const endR = THREE.MathUtils.lerp(Math.min(r1, r2)*0.18, Math.min(r1, r2)*0.6, t);
-    const centerR = THREE.MathUtils.lerp(Math.min(r1, r2)*0.12, Math.min(r1, r2)*0.3, t);
-    const profile = Math.sin(Math.PI * uMid);
-    const radius = THREE.MathUtils.lerp(endR, centerR, profile) * (0.9 + 0.1*Math.sin((performance.now()*0.002)+uMid*6+wobblePhase));
-    const part = parts[i];
-    part.position.copy(center);
-    part.setRotationFromQuaternion(quat);
-    part.scale.set(radius, len, radius);
-    part.material.opacity = 0.9 * (0.7 + 0.3*(1 - Math.abs(0.5 - uMid)*2));
-  }
-}
-
-function updateMerges(dt) {
-  const done = [];
-  activeMerges.forEach(merge => {
-    merge.t += dt;
-    const { receiver, donor, bridge } = merge;
-    if (!receiver || !donor) { done.push(merge); return; }
-    const p1 = receiver.mesh.position;
-    const p2 = donor.mesh.position;
-    const delta = new THREE.Vector3().subVectors(p2, p1);
-    const dist = delta.length();
-    const dir = delta.clone().normalize();
-
-    if (merge.phase === 'bridge') {
-      const t = THREE.MathUtils.clamp(merge.t / merge.bridgeDuration, 0, 1);
-      // update dynamic bridge look
-      updateBridgeGroup(bridge, p1, p2, receiver.radius, donor.radius, t, merge.wobblePhase);
-      // gentle attraction
-      const pull = 24.0 * (1.0 - Math.min(1, dist / (receiver.radius + donor.radius + 30)));
-      receiver.velocity.addScaledVector(dir,  pull * dt);
-      donor.  velocity.addScaledVector(dir, -pull * dt);
-      if (t >= 1.0 || dist < (receiver.radius + donor.radius) * 0.55) {
-        merge.phase = 'fuse';
-        merge.t = 0;
-      }
-    } else if (merge.phase === 'fuse') {
-      const t = THREE.MathUtils.clamp(merge.t / merge.fuseDuration, 0, 1);
-      const ease = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
-      const targetReceiverVol = merge.combinedVolume;
-      const receiverVol = THREE.MathUtils.lerp(Math.pow(merge.startReceiverRadius,3), targetReceiverVol, ease);
-      const donorVol = Math.max(0, merge.combinedVolume - receiverVol);
-      receiver.radius = Math.cbrt(receiverVol);
-      donor.radius = Math.cbrt(donorVol);
-
-      receiver.mesh.geometry.dispose();
-      receiver.mesh.geometry = new THREE.IcosahedronGeometry(receiver.radius, 4);
-      donor.mesh.geometry.dispose();
-      donor.mesh.geometry = new THREE.IcosahedronGeometry(Math.max(0.0001, donor.radius), 3);
-
-      // move toward midpoint and keep bridge updated while donor shrinks
-      const mid = p1.clone().add(p2).multiplyScalar(0.5);
-      receiver.mesh.position.lerp(mid, 0.22 * dt);
-      donor.mesh.position.lerp(mid, 0.30 * dt);
-      updateBridgeGroup(bridge, receiver.mesh.position, donor.mesh.position, receiver.radius, donor.radius, 1 - t*0.9, merge.wobblePhase);
-
-      // fade bridge
-      bridge.children.forEach(child => { if (child.material) child.material.opacity = 0.85 * (1 - t); });
-
-      if (t >= 1.0 || donor.radius < 0.05) {
-        // finalize merge: keep originals intact and create a new ephemeral derived thought (local only)
-        scene.remove(bridge);
-        bridge.children.forEach(child => { child.geometry?.dispose(); child.material?.dispose(); });
-        // restore original sizes/positions
-        receiver.radius = merge.startReceiverRadius;
-        donor.radius = merge.startDonorRadius;
-        receiver.mesh.geometry.dispose();
-        receiver.mesh.geometry = new THREE.IcosahedronGeometry(receiver.radius, 4);
-        donor.mesh.geometry.dispose();
-        donor.mesh.geometry = new THREE.IcosahedronGeometry(donor.radius, 3);
-        receiver.mesh.position.copy(merge.startReceiverPos);
-        donor.mesh.position.copy(merge.startDonorPos);
-        // midpoint with slight jitter to avoid stacking on originals
-        const mid = p1.clone().add(p2).multiplyScalar(0.5);
-        mid.x += (Math.random()-0.5) * 20;
-        mid.y += (Math.random()-0.5) * 20;
-        mid.z += (Math.random()-0.5) * 6;
-        const priorText = receiver.text;
-        const donorText = donor.text;
-        averageThoughtAsync(priorText, donorText).then(avg => {
-          const newText = avg || sanitizeMidpoint(`${priorText} ${donorText}`);
-          addEphemeralBlob(newText, mid);
-        }).catch(()=>{});
-        // set cooldowns and remember the pair
-        const ida = receiver.id || receiver.mesh.id;
-        const idb = donor.id || donor.mesh.id;
-        const pairKey = ida < idb ? ida + '_' + idb : idb + '_' + ida;
-        recentMergePairs.set(pairKey, Date.now());
-        setTimeout(() => { recentMergePairs.delete(pairKey); }, 4000);
-        receiver.cooldownUntil = Date.now() + 2500;
-        donor.cooldownUntil = Date.now() + 2500;
-        receiver.merging = false;
-        done.push(merge);
-      }
-    }
-  });
-  done.forEach(m => activeMerges.delete(m));
-}
-
-// ----- Helpers -----
-async function averageThoughtAsync(textA, textB) {
-  try {
-    const targetWords = clampInt(Math.round((countWords(textA) + countWords(textB)) / 2), 6, 22);
-    if (OFFLINE_MERGE) {
-      return sanitizeMidpoint(offlineMidpoint(textA, textB, targetWords));
-    }
-    if (!REPLICATE_TOKEN || !REPLICATE_VERSION) return sanitizeMidpoint(offlineMidpoint(textA, textB, targetWords));
-    // 1) Embed A and B
-    const aShort = String(textA || '').slice(0, 280);
-    const bShort = String(textB || '').slice(0, 280);
-    const embeds = await embedTexts([aShort, bShort]);
-    if (!embeds || embeds.length < 2) return null;
-    const va = embeds[0], vb = embeds[1];
-    const vc = vectorAverage(va, vb);
-    // 2) Propose candidates via LLM (short list), then pick by nearest to vc
-    const candidates = await proposeCandidatesLLM(aShort, bShort, Math.max(4, Math.min(12, targetWords)));
-    const safe = dedupeAndFilterCandidates(candidates, aShort, bShort);
-    if (safe.length === 0) return null;
-    const candEmbeds = await embedTexts(safe);
-    if (!candEmbeds) return null;
-    let bestIdx = 0; let bestScore = -Infinity;
-    for (let i = 0; i < safe.length; i++) {
-      const sim = cosine(candEmbeds[i], vc);
-      if (sim > bestScore) { bestScore = sim; bestIdx = i; }
-    }
-    return sanitizeMidpoint(safe[bestIdx]);
-  } catch (e) {
-    console.warn('avgThought failed', e);
-    return null;
-  }
-}
-
-// Simple similarity by Jaccard on word sets
-function similarity(a, b) {
-  if (!a || !b) return 0;
-  const sa = new Set(a.split(/\s+/).filter(Boolean));
-  const sb = new Set(b.split(/\s+/).filter(Boolean));
-  let inter = 0;
-  for (const w of sa) if (sb.has(w)) inter++;
-  const union = sa.size + sb.size - inter;
-  return union === 0 ? 0 : inter / union;
-}
-
-function craftHybridFallback(a, b, targetWords = 10) {
-  const pick = (t) => {
-    const s = (t || '').trim();
-    if (!s) return '';
-    // If contains CJK/Hangul scripts, keep a short snippet (handles words like "안녕")
-    const hasCJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(s);
-    if (hasCJK) return s.slice(0, 6);
-    // Latin-like: pick meaningful words (allow short words too except common stopwords)
-    const stop = new Set(['the','a','an','and','or','but','to','of','in','on','at','for','with','by','is','are','am','be','as','it','this','that','these','those','i','you','we','they','he','she','them','us','me','my','your','our']);
-    const tokens = s.split(/[^\p{L}\p{N}']+/u).filter(x => x && !stop.has(x.toLowerCase()));
-    return tokens.slice(0, 3).join(' ');
-  };
-  const pa = pick(a) || (a || '').trim();
-  const pb = pick(b) || (b || '').trim();
-  const templates = [
-    (x,y) => `${x} drifts toward ${y}`,
-    (x,y) => `${x} echoes of ${y}`,
-    (x,y) => `${x} and ${y} share a quiet room`,
-    (x,y) => `${x} under ${y}'s weather`,
-    (x,y) => `${x} meets ${y} in soft light`
-  ];
-  let base = (pa && pb) ? templates[Math.floor(Math.random()*templates.length)](pa, pb) : (pa || pb || '').trim();
-  // pad with light imagery words to hit target length
-  const fillers = ['breathing', 'softly', 'in', 'a', 'quiet', 'room', 'of', 'winter', 'light'];
-  while (countWords(base) < targetWords && fillers.length) {
-    base += ' ' + fillers.shift();
-  }
-  return base.slice(0, 180) || 'blended thought';
-}
-
-function countWords(s) {
-  if (!s) return 0;
-  const hasCJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(s);
-  if (hasCJK) return Math.max(1, Math.round(s.trim().length / 2));
-  return s.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function clampInt(v, min, max) { return Math.max(min, Math.min(max, v|0)); }
-
-function sanitizeMidpoint(s) {
-  let t = (s || '').trim().replace(/^"|"$/g, '');
-  t = t.replace(/^C\s*:\s*/i, '').trim();
-  // remove banned words/phrases
-  const banned = [/\bit\s+reminds\s+me\s+of\b/gi, /\bbetween\b/gi, /\bblend(ed|ing)?\b/gi, /\bmix(ed|ing)?\b/gi, /\bmiddle\b/gi];
-  banned.forEach(rx => { t = t.replace(rx, '').trim(); });
-  // collapse whitespace and punctuation cleanup
-  t = t.replace(/\s{2,}/g, ' ').replace(/\s+([,.;!?])/g, '$1');
-  // start with capital letter
-  if (t) t = t.charAt(0).toUpperCase() + t.slice(1);
-  return t.slice(0, 180);
-}
-
-async function fetchReplicateWithRetry(body, token, attempts = 2) {
-  // legacy direct path; keep for compatibility
-  return scheduleReplicateCall(body, token);
-}
-
-async function doFetchWithRetry(body, token, attempts = 3) {
-  let lastErr = null;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const controller = new AbortController();
-      const t = setTimeout(() => controller.abort(), 15000);
-      const res = await fetch(REPLICATE_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(body),
-        signal: controller.signal
-      });
-      clearTimeout(t);
-      const json = await res.json().catch(() => ({ error: 'invalid_json' }));
-      if (res.status === 429) {
-        lastErr = json || { error: 'rate_limited' };
-        // exponential backoff with jitter
-        const delay = 600 * Math.pow(2, i) + Math.random() * 300;
-        await new Promise(r => setTimeout(r, delay));
-        continue;
-      }
-      if (res.status >= 500) {
-        lastErr = json || { error: `status_${res.status}` };
-        await new Promise(r => setTimeout(r, 400 * (i + 1)));
-        continue;
-      }
-      return json;
-    } catch (e) {
-      lastErr = e;
-      await new Promise(r => setTimeout(r, 400 * (i + 1)));
-    }
-  }
-  if (window.REPLICATE_DEBUG) console.warn('[replicate] final error', lastErr);
-  return { error: lastErr || 'unknown_error' };
-}
-
-function makePairKey(aId, bId) {
-  if (!aId || !bId) return '';
-  return (aId < bId) ? `${aId}_${bId}` : `${bId}_${aId}`;
-}
-
-// ----- Embedding-driven midpoint helpers -----
-const embedCache = new Map();
-async function embedTexts(texts) {
-  try {
-    const need = [];
-    const mapIdx = [];
-    for (let i = 0; i < texts.length; i++) {
-      const key = texts[i];
-      if (embedCache.has(key)) {
-        mapIdx.push(-1);
-      } else {
-        mapIdx.push(need.length);
-        need.push(key);
-      }
-    }
-    if (need.length > 0) {
-      const body = { version: EMBED_VERSION, input: { texts: JSON.stringify(need) } };
-      const json = await fetchReplicateWithRetry(body, REPLICATE_TOKEN, 2);
-      const out = json?.output;
-      if (Array.isArray(out)) {
-        for (let i = 0; i < out.length; i++) embedCache.set(need[i], out[i]);
-      }
-    }
-    return texts.map(t => embedCache.get(t)).filter(Boolean);
-  } catch (_) { return null; }
-}
-
-function vectorAverage(a, b) {
-  const n = Math.min(a.length, b.length);
-  const out = new Array(n);
-  for (let i = 0; i < n; i++) out[i] = 0.5 * (a[i] + b[i]);
-  return out;
-}
-
-function cosine(a, b) {
-  let dot = 0, na = 0, nb = 0;
-  const n = Math.min(a.length, b.length);
-  for (let i = 0; i < n; i++) { dot += a[i]*b[i]; na += a[i]*a[i]; nb += b[i]*b[i]; }
-  const denom = Math.sqrt(na) * Math.sqrt(nb);
-  return denom ? dot / denom : 0;
-}
-
-async function proposeCandidatesLLM(a, b, targetWords) {
-  const prompt = `Propose 8 short, evocative midpoint phrases (no quotes) that lie near the semantic centroid of A and B. Avoid copying substrings from A or B; avoid words like between/mix/blend/middle. Each item 1-${targetWords} words, one per line.\nA: "${a}"\nB: "${b}"\nCandidates:`;
-  const data = { version: REPLICATE_VERSION, input: { prompt, max_tokens: 140, temperature: 0.8, top_p: 0.95 } };
-  const json = await fetchReplicateWithRetry(data, REPLICATE_TOKEN, 2);
-  let out = json?.output;
-  if (!out) return [];
-  if (Array.isArray(out)) out = out.find(x => typeof x === 'string') || out[0];
-  if (typeof out === 'object') out = out.text || out.response || out.content || '';
-  if (typeof out !== 'string') out = String(out || '');
-  return out.split(/\r?\n/).map(s => s.trim()).filter(Boolean).slice(0, 12);
-}
-
-function dedupeAndFilterCandidates(list, a, b) {
-  const seen = new Set();
-  const bad = [/\bbetween\b/i, /\bblend(ed|ing)?\b/i, /\bmix(ed|ing)?\b/i, /\bmiddle\b/i, /\bit\s+reminds\s+me\s+of\b/i];
-  const aLC = (a||'').toLowerCase();
-  const bLC = (b||'').toLowerCase();
-  const out = [];
-  for (const s of list) {
-    let t = s.replace(/^[-*\d.\)\s]+/, '').trim();
-    if (!t || seen.has(t.toLowerCase())) continue;
-    if (bad.some(rx => rx.test(t))) continue;
-    const tLC = t.toLowerCase();
-    if (tLC.includes(aLC) || tLC.includes(bLC)) continue;
-    seen.add(t.toLowerCase());
-    out.push(t);
-  }
-  return out.slice(0, 12);
-}
-
-// ----- Offline midpoint (no network) -----
-function offlineMidpoint(a, b, targetWords = 10) {
-  const kw = (t) => {
-    const s = (t||'').trim();
-    const hasCJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(s);
-    if (hasCJK) return s.slice(0, 6);
-    const stop = new Set(['the','a','an','and','or','but','to','of','in','on','at','for','with','by','is','are','am','be','as','it','this','that','these','those','i','you','we','they','he','she','them','us','me','my','your','our']);
-    return s.split(/[^\p{L}\p{N}']+/u).filter(x => x && !stop.has(x.toLowerCase())).slice(0, 3).join(' ');
-  };
-  const ka = kw(a) || (a||'').trim();
-  const kb = kw(b) || (b||'').trim();
-  const textures = ['silk','salt','ash','mist','paper','honey','smoke','glass','wool'];
-  const places = ['quiet room','winter street','harbor dawn','small kitchen','empty gallery'];
-  const actions = ['breathing softly','drifts toward','settles into','echoes under'];
-  const colors = ['pale yellow','amber','white','milk','lemon'];
-  const t = Math.random();
-  let phrase;
-  if (t < 0.33) {
-    phrase = `${ka} ${actions[Math.floor(Math.random()*actions.length)]} ${kb} in ${colors[Math.floor(Math.random()*colors.length)]}`;
-  } else if (t < 0.66) {
-    phrase = `${ka} and ${kb} in a ${places[Math.floor(Math.random()*places.length)]}`;
-  } else {
-    phrase = `${ka} under ${kb}'s weather, ${textures[Math.floor(Math.random()*textures.length)]}`;
-  }
-  // pad to target length with light words
-  const fillers = ['softly','and','then','again','nearby','quietly'];
-  while (countWords(phrase) < targetWords && fillers.length) phrase += ' ' + fillers.shift();
-  return phrase;
-}
-
-// ----- Admin helpers -----
-window.purgeThoughts = async function() {
-  try {
-    await remove(dbRef(rtdb, 'thoughts'));
-  } catch (e) {
-    console.warn('purge remove failed, trying set=null', e);
-    try { await set(dbRef(rtdb, 'thoughts'), null); } catch (_) {}
-  }
-  // local cleanup
-  for (const b of Array.from(blobs.values())) {
-    metaballGroup.remove(b.mesh);
-    b.mesh.geometry?.dispose();
-    b.material?.dispose();
-    b.labelEl?.remove();
-  }
-  blobs.clear();
-  existingDerivedPairs.clear();
-  recentMergePairs.clear();
-  manualThoughtCount = 0;
-  derivedThoughtCount = 0;
-  console.log('All thoughts purged.');
-};
-
-function initialVelocity() {
-  // random 2D direction, magnitude 1..4
-  const angle = Math.random() * Math.PI * 2;
-  const mag = 1 + Math.random() * 3;
-  return new THREE.Vector3(Math.cos(angle)*mag, Math.sin(angle)*mag, (Math.random()-0.5)*0.3);
-}
-
-function computeViewBounds() {
-  // visible rectangle at z=0 given perspective
-  const dist = Math.abs(camera.position.z); // camera to origin
-  const vFOV = THREE.MathUtils.degToRad(camera.fov);
-  const halfH = Math.tan(vFOV/2) * dist;
-  const halfW = halfH * camera.aspect;
-  viewBounds = { halfW: halfW * BOUNDS_SCALE, halfH: halfH * BOUNDS_SCALE };
-}
-
-function applyBounds(blob) {
-  const p = blob.mesh.position;
-  const e = 0.88; // restitution
-  if (p.x > viewBounds.halfW - blob.radius) { p.x = viewBounds.halfW - blob.radius; blob.velocity.x *= -e; }
-  if (p.x < -viewBounds.halfW + blob.radius) { p.x = -viewBounds.halfW + blob.radius; blob.velocity.x *= -e; }
-  if (p.y > viewBounds.halfH - blob.radius) { p.y = viewBounds.halfH - blob.radius; blob.velocity.y *= -e; }
-  if (p.y < -viewBounds.halfH + blob.radius) { p.y = -viewBounds.halfH + blob.radius; blob.velocity.y *= -e; }
-  // optional shallow z constraint
-  if (p.z > 120) { p.z = 120; blob.velocity.z *= -e; }
-  if (p.z < -120) { p.z = -120; blob.velocity.z *= -e; }
-}
-
-// Resolve an elastic collision between two blobs in the XY plane, with position correction
-function resolveElasticCollision(a, b, targetDist, restitution = 0.9) {
-  const posA = a.mesh.position;
-  const posB = b.mesh.position;
-  const delta = new THREE.Vector3().subVectors(posB, posA);
-  const dist = Math.max(1e-6, Math.hypot(delta.x, delta.y));
-  const nx = delta.x / dist;
-  const ny = delta.y / dist;
-  // Positional correction to remove overlap
-  const overlap = targetDist - dist;
-  if (overlap > 0) {
-    const pushX = nx * (overlap * 0.5);
-    const pushY = ny * (overlap * 0.5);
-    posA.x -= pushX; posA.y -= pushY;
-    posB.x += pushX; posB.y += pushY;
-  }
-  // Mass proportional to radius^2 (2D area surrogate)
-  const mA = Math.max(1, a.radius * a.radius);
-  const mB = Math.max(1, b.radius * b.radius);
-  // Relative velocity along normal
-  const rvx = a.velocity.x - b.velocity.x;
-  const rvy = a.velocity.y - b.velocity.y;
-  const velAlongNormal = rvx * nx + rvy * ny;
-  if (velAlongNormal > 0) return; // already separating
-  const j = -(1 + restitution) * velAlongNormal / (1/mA + 1/mB);
-  const ix = j * nx;
-  const iy = j * ny;
-  a.velocity.x += ix / mA;
-  a.velocity.y += iy / mA;
-  b.velocity.x -= ix / mB;
-  b.velocity.y -= iy / mB;
-}
-
-// Create a local-only, ephemeral derived bubble that will vanish on refresh
-function addEphemeralBlob(text, positionVec3) {
-  const id = `local_${Date.now()}_${Math.floor(Math.random()*1e6)}`;
-  const data = { text, pos: { x: positionVec3.x, y: positionVec3.y, z: positionVec3.z } };
-  if (blobs.has(id)) return;
-  const radius = (12 + Math.min(24, (text?.length || 0) * 0.35)) * 0.875;
-  const geo = new THREE.IcosahedronGeometry(radius, 3);
-  const material = createGooMaterial(0xffea00);
-  const mesh = new THREE.Mesh(geo, material);
-  mesh.position.copy(positionVec3);
-  metaballGroup.add(mesh);
-
-  const label = document.createElement('div');
-  label.className = 'label';
-  label.textContent = text || '';
-  labelsLayer.appendChild(label);
-
-  blobs.set(id, {
-    id,
-    mesh,
-    material,
-    velocity: initialVelocity(),
-    text: text || '',
-    labelEl: label,
-    radius,
-    isDerived: true,
-    ephemeral: true
-  });
-  enforceBubbleCap();
-}
-
-function randomSpawnPosObj() {
-  // uniform in disk within expanded bounds, plus shallow Z range
-  const maxR = Math.min(viewBounds.halfW, viewBounds.halfH) * 0.9;
-  const angle = Math.random() * Math.PI * 2;
-  const r = Math.sqrt(Math.random()) * maxR;
-  const x = Math.cos(angle) * r;
-  const y = Math.sin(angle) * r;
-  const z = (Math.random() - 0.5) * 160;
-  return { x, y, z };
-}
-
-function updateLabels() {
+// ----- Hover Tooltip -----
+function onMouseMove(event) {
   const rect = renderer.domElement.getBoundingClientRect();
-  for (const blob of blobs.values()) {
-    const p = blob.mesh.position.clone();
-    p.project(camera);
-    const x = (p.x * 0.5 + 0.5) * rect.width;
-    const y = (-p.y * 0.5 + 0.5) * rect.height;
-    blob.labelEl.style.left = `${x}px`;
-    blob.labelEl.style.top = `${y}px`;
-    const dist = camera.position.distanceTo(blob.mesh.position);
-    const alpha = THREE.MathUtils.clamp(1.6 - dist/220, 0.2, 1);
-    blob.labelEl.style.opacity = `${alpha}`;
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+  // Recursively check all children since deities are now groups with multiple meshes
+  const intersects = raycaster.intersectObjects(deitiesGroup.children, true);
+  if (intersects.length > 0) {
+    // Find the parent deity group (has userData.entityIndex)
+    let obj = intersects[0].object;
+    while (obj && obj.userData.entityIndex === undefined) {
+      obj = obj.parent;
+    }
+    if (obj && obj.userData.entityIndex !== undefined) {
+      const idx = obj.userData.entityIndex;
+      const e = entities[idx];
+      showTooltip(e, event.clientX, event.clientY);
+    } else {
+      hideTooltip();
+    }
+  } else {
+    hideTooltip();
   }
 }
 
+function showTooltip(entity, clientX, clientY) {
+  const title = `${entity.name} (${entity.culture})`;
+  tooltipEl.innerHTML = `<div style="font-weight:bold; margin-bottom:4px;">${title}</div><div style="opacity:0.9;">${entity.blurb}</div>`;
+  tooltipEl.style.left = clientX + 12 + 'px';
+  tooltipEl.style.top = clientY + 12 + 'px';
+  tooltipEl.style.display = 'block';
+}
 
+function hideTooltip() {
+  tooltipEl.style.display = 'none';
+}
+
+// ----- Wish Submission and Matching -----
+function onSubmitWish() {
+  console.log('Submit button clicked');
+  
+  if (!embeddingsReady || deityMeshes.length === 0) {
+    console.warn('Still preparing the cosmos. Please wait a moment.');
+    alert('Still preparing the cosmos. Please wait a moment.');
+    return;
+  }
+  
+  if (!db) {
+    console.error('Database not initialized');
+    alert('Database connection not ready. Please refresh the page.');
+    return;
+  }
+  
+  const input = document.getElementById('wishText');
+  const text = (input.value || '').trim();
+  if (!text) {
+    console.log('No text entered');
+    return;
+  }
+  
+  console.log('Processing wish:', text);
+
+  // Build concatenated wish embedding to match concatenated entity embeddings
+  // Fixed 50/50 split between power and domain
+  const W2 = 0.5; // power weight
+  const W3 = 0.5; // domain weight
+  const wishPower = generateDeterministicEmbedding(text + ' power');
+  const wishDomain = generateDeterministicEmbedding(text + ' domain');
+  const wishEmbedding = new Array(wishPower.length + wishDomain.length);
+  for (let i = 0; i < wishPower.length; i++) wishEmbedding[i] = wishPower[i] * W2;
+  for (let j = 0; j < wishDomain.length; j++) wishEmbedding[wishPower.length + j] = wishDomain[j] * W3;
+  const blended = getBlendedEmbeddings();
+  const match = findBestMatch(wishEmbedding, blended);
+  const idx = match.idx;
+  if (idx === -1) return;
+
+  const deityMesh = entityIndexToMesh.get(idx);
+  if (!deityMesh) return;
+
+  // Visualize immediately
+  orientUserToward(deityMesh.position);
+  spawnRitualRings();
+  const confidence = Math.max(0, Math.min(1, (match.score + 1) / 2)); // map cosine -1..1 to 0..1
+  const beamSpeed = 20 * (0.6 + 0.8 * confidence); // slower overall; vary with confidence
+  const beam = createCurvedBeam(userDot.position.clone(), deityMesh.position.clone(), entities[idx].displayColor, false, beamSpeed);
+  beamsGroup.add(beam.object3d);
+  activeBeamAnimations.add(beam);
+
+  // Camera stays static - no movement, user maintains their view to see the full ray
+
+  showMatchExplanation(text, entities[idx], match, { power: 0.5, domain: 0.5 });
+
+  // Pulse highlight on matched deity
+  startMatchPulse(deityMesh);
+
+  // Ghost lines to top-2 alternatives
+  drawGhostAlternatives(wishEmbedding, blended, idx);
+
+  // Persist to Realtime Database
+  console.log('🔥 Attempting to save wish to Realtime Database...', { text, matchedEntityName: entities[idx].name });
+  const wishRef = db.ref('wishes').push({
+    text,
+    matchedEntityName: entities[idx].name,
+    matchedEntityIndex: idx,
+    deityXYZ: { x: deityMesh.position.x, y: deityMesh.position.y, z: deityMesh.position.z },
+    userZ,
+    weights: { power: W2, domain: W3 },
+    createdAt: firebase.database.ServerValue.TIMESTAMP
+  }, (error) => {
+    if (error) {
+      console.error('❌ Failed to save wish:', error);
+      console.error('Error message:', error.message);
+      // Keep local beam visible even if save fails; show subtle UI hint
+      try {
+        const msg = document.createElement('div');
+        msg.textContent = `Database Error: ${error.message}. Check console & Firebase rules.`;
+        msg.style.cssText = 'position:absolute; top:6px; right:6px; background:rgba(150,30,30,0.95); color:#fff; padding:8px 12px; border-radius:4px; font-size:11px; max-width:300px;';
+        container.appendChild(msg);
+        setTimeout(() => msg.remove(), 8000);
+      } catch (_) {}
+    } else {
+      console.log('✅ Wish saved successfully! Key:', wishRef.key);
+      input.value = '';
+    }
+  });
+}
+
+function findBestMatch(queryEmbedding, poolEmbeddings) {
+  let bestIdx = -1;
+  let bestScore = -Infinity;
+  const qNorm = vectorNorm(queryEmbedding);
+  for (let i = 0; i < poolEmbeddings.length; i++) {
+    const s = cosineSimilarity(queryEmbedding, poolEmbeddings[i], qNorm);
+    if (s > bestScore) { bestScore = s; bestIdx = i; }
+  }
+  return { idx: bestIdx, score: bestScore };
+}
+
+function vectorNorm(v) {
+  let sum = 0; for (let i = 0; i < v.length; i++) sum += v[i] * v[i]; return Math.sqrt(sum);
+}
+
+function cosineSimilarity(a, b, aNorm) {
+  let dot = 0; let bNormSq = 0;
+  for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; bNormSq += b[i] * b[i]; }
+  const denom = (aNorm || vectorNorm(a)) * Math.sqrt(bNormSq);
+  return denom === 0 ? 0 : dot / denom;
+}
+
+// ----- Beams -----
+function createBeam(from, to, color) {
+  const points = [from, to];
+  const geom = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending });
+  const line = new THREE.Line(geom, mat);
+  return { line, createdAtMs: Date.now() };
+}
+
+function subscribeBeams() {
+  console.log('🔥 Setting up Realtime Database listener for wishes...');
+  const wishesRef = db.ref('wishes');
+  
+  // Listen for ALL wishes (including existing ones on page load)
+  // 'child_added' fires for each existing child on initial load, then for new additions
+  wishesRef.on('child_added', (snapshot) => {
+    const wishId = snapshot.key;
+    const data = snapshot.val();
+    console.log('✨ Wish loaded/added:', { id: wishId, data });
+    
+    if (!data || typeof data.matchedEntityIndex !== 'number') return;
+    
+    if (wishDocIdToBeam.has(wishId)) return; // already rendered
+
+    // Reconstruct beam positions from saved data
+    const deityPos = new THREE.Vector3(
+      (data.deityXYZ?.x != null ? data.deityXYZ.x : (data.deityXY?.x || 0)),
+      (data.deityXYZ?.y != null ? data.deityXYZ.y : (data.deityXY?.y || 0)),
+      (data.deityXYZ?.z != null ? data.deityXYZ.z : 0)
+    );
+    const from = new THREE.Vector3(0, 0, data.userZ || userZ);
+    const color = entities[data.matchedEntityIndex]?.displayColor || new THREE.Color(0xffffff);
+    
+    // Create beam (no animation for loaded beams)
+    const beam = createCurvedBeam(from, deityPos, color, true /*no anim*/);
+    beamsGroup.add(beam.object3d);
+    
+    const createdAtMs = data.createdAt || Date.now();
+    beam.createdAtMs = createdAtMs;
+    beam.material = beam.object3d.children[0]?.material;
+    
+    // Store beam reference
+    wishDocIdToBeam.set(wishId, beam);
+    
+    // Update deity popularity
+    incrementDeityCount(data.matchedEntityIndex);
+    updateDeityHalo(data.matchedEntityIndex);
+  });
+  
+  console.log('✅ Real-time listener active. All existing and new beams will render.');
+}
+
+function updateBeamOpacities() {
+  const now = Date.now();
+  const halfLifeMs = 10 * 60 * 1000; // 10 minutes
+  const minAlpha = 0.05; // never fully disappear
+  wishDocIdToBeam.forEach(beam => {
+    const age = now - (beam.createdAtMs || now);
+    const t = age / halfLifeMs;
+    const alpha = Math.max(minAlpha, Math.exp(-t));
+    if (beam.material) beam.material.opacity = alpha;
+    if (beam.object3d) {
+      beam.object3d.traverse(obj => {
+        if (obj.material && 'opacity' in obj.material) obj.material.opacity = alpha;
+      });
+    }
+  });
+}
+
+// ----- User orientation/breathing -----
+function orientUserToward(target) {
+  const dir = new THREE.Vector3().subVectors(target, userDot.position).normalize();
+  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+  userDot.quaternion.slerp(quat, 0.9);
+}
+
+function updateUserBreathing() {
+  const t = performance.now() * 0.001;
+  const typingActive = (performance.now() - typingLastTs) < 900;
+  const amp = typingActive ? 0.12 : 0.05; // stronger when typing
+  const s = 1.0 + Math.sin(t * 2.0) * amp;
+  userDot.scale.set(s, s, s);
+}
+
+// ----- Ritual rings -----
+function spawnRitualRings() {
+  const ringCount = 3;
+  for (let i = 0; i < ringCount; i++) {
+    const geo = new THREE.RingGeometry(10, 10.8, 64);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xaaccff, transparent: true, opacity: 0.8, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(userDot.position);
+    mesh.rotation.x = Math.PI / 2;
+    ritualRings.push({ mesh, start: performance.now(), delay: i * 120 });
+    scene.add(mesh);
+  }
+}
+
+function updateRitualRings() {
+  const now = performance.now();
+  const duration = 1800;
+  ritualRings = ritualRings.filter(r => {
+    const t = (now - r.start - r.delay) / duration;
+    if (t < 0) return true;
+    if (t >= 1) { scene.remove(r.mesh); return false; }
+    const radius = 10 + t * 80;
+    r.mesh.geometry.dispose();
+    r.mesh.geometry = new THREE.RingGeometry(radius, radius + 0.8, 64);
+    r.mesh.material.opacity = 0.8 * (1 - t);
+    return true;
+  });
+}
+
+// ----- Curved animated beams -----
+function createCurvedBeam(from, to, color, noAnim = false, speedOverride = null) {
+  const mid = from.clone().lerp(to, 0.5);
+  mid.z += 40; // subtle upward arc
+  const curve = new THREE.QuadraticBezierCurve3(from, mid, to);
+  const segments = 100;
+  const points = curve.getPoints(segments);
+  // initialize with minimal segment to avoid initial flash
+  const startPoints = noAnim ? points : [points[0], points[0]];
+  const geom = new THREE.BufferGeometry().setFromPoints(startPoints);
+  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending });
+  const line = new THREE.Line(geom, mat);
+  const object3d = new THREE.Group();
+  object3d.add(line);
+
+  // animated draw-on using line dashes via shader alternative: emulate by clipping visible segment
+  const anim = { object3d, curve, total: segments, visible: noAnim ? segments : 0, createdAtMs: Date.now(), speed: speedOverride };
+  if (!noAnim) anim.started = performance.now();
+  return anim;
+}
+
+function updateBeamAnimations() {
+  const now = performance.now();
+  activeBeamAnimations.forEach(anim => {
+    if (anim.visible >= anim.total) { activeBeamAnimations.delete(anim); return; }
+    const dt = (now - (anim.started || now)) / 1000;
+    const speed = (anim.speed != null ? anim.speed : 60); // slower default
+    const targetVisible = Math.min(anim.total, Math.floor(dt * speed));
+    if (targetVisible > anim.visible) {
+      anim.visible = targetVisible;
+      const pts = anim.curve.getPoints(anim.total);
+      const sub = pts.slice(0, anim.visible + 1);
+      anim.object3d.children[0].geometry.dispose();
+      anim.object3d.children[0].geometry = new THREE.BufferGeometry().setFromPoints(sub);
+    }
+  });
+}
+
+// ----- Typing glow -----
+function updateTypingGlow() {
+  if (!typingHalo) return;
+  const active = (performance.now() - typingLastTs) < 900;
+  typingHalo.visible = active;
+  if (!active) return;
+  typingHalo.position.copy(userDot.position);
+  const t = performance.now() * 0.001;
+  const base = 24;
+  const scale = 1 + 0.25 * (Math.sin(t * 2.0) + 1) * 0.5;
+  typingHalo.scale.set(scale, scale, 1);
+  typingHalo.material.opacity = 0.35 + 0.25 * Math.sin(t * 2.0 + Math.PI / 3);
+}
+
+// ----- Camera animation -----
+function animateCameraTo(endPos, endTarget, dur = 1000) {
+  cameraAnim = {
+    startPos: camera.position.clone(),
+    startTarget: controls.target.clone(),
+    endPos: endPos.clone(),
+    endTarget: endTarget.clone(),
+    t0: performance.now(),
+    dur
+  };
+}
+
+function updateCameraAnim() {
+  if (!cameraAnim) return;
+  const now = performance.now();
+  const t = Math.min(1, (now - cameraAnim.t0) / cameraAnim.dur);
+  const ease = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t; // easeInOutQuad
+  camera.position.lerpVectors(cameraAnim.startPos, cameraAnim.endPos, ease);
+  controls.target.lerpVectors(cameraAnim.startTarget, cameraAnim.endTarget, ease);
+  if (t >= 1) cameraAnim = null;
+}
+
+function ensureTypingFocusCamera() {
+  const endPos = userDot.position.clone().add(new THREE.Vector3(0, 0, 90));
+  animateCameraTo(endPos, userDot.position.clone(), 700);
+}
+
+function getDeitiesCenter() {
+  const center = new THREE.Vector3();
+  if (!deityMeshes || deityMeshes.length === 0) return center;
+  deityMeshes.forEach(m => center.add(m.position));
+  center.multiplyScalar(1 / deityMeshes.length);
+  return center;
+}
+
+// ----- Halos by cumulative prayers -----
+function incrementDeityCount(idx) {
+  deityCounts.set(idx, (deityCounts.get(idx) || 0) + 1);
+}
+
+function updateDeityHalo(idx) {
+  const mesh = entityIndexToMesh.get(idx);
+  if (!mesh) return;
+  let halo = deityIndexToHalo.get(idx);
+  if (!halo) {
+    const geo = new THREE.RingGeometry(8, 10, 48);
+    const mat = new THREE.MeshBasicMaterial({ color: entities[idx].displayColor, transparent: true, opacity: 0.3, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+    halo = new THREE.Mesh(geo, mat);
+    halo.rotation.x = Math.PI / 2;
+    mesh.add(halo);
+    deityIndexToHalo.set(idx, halo);
+  }
+  const count = deityCounts.get(idx) || 1;
+  const radius = 8 + Math.log(1 + count) * 4;
+  halo.geometry.dispose();
+  halo.geometry = new THREE.RingGeometry(radius, radius + 2, 48);
+  halo.material.opacity = 0.25 + Math.min(0.5, Math.log(1 + count) * 0.15);
+}
+
+
+// ----- Explain match -----
+function showMatchExplanation(wishText, entity, match, weights) {
+  if (!explainEl) return;
+  const topDomains = (entity.domainKeywords || []).slice(0, 3).join(', ');
+  const conf = Math.round(Math.max(0, Math.min(1, (match.score + 1) / 2)) * 100);
+  explainEl.innerHTML = `
+    <div style="font-weight:700; margin-bottom:6px;">Why ${entity.name}?</div>
+    <div style="opacity:0.9;">Matched by equal weighting:</div>
+    <ul style="margin:6px 0 8px 16px; padding:0;">
+      <li>Power × ${weights.power.toFixed(1)}</li>
+      <li>Domain × ${weights.domain.toFixed(1)}</li>
+    </ul>
+    <div style="opacity:0.9;">${entity.name} domains: ${topDomains}</div>
+    <div style="opacity:0.9; margin-top:6px;">Confidence: ${conf}%</div>
+  `;
+  const screen = worldToScreen(userDot.position.clone());
+  explainEl.style.left = (screen.x + 16) + 'px';
+  explainEl.style.top = (screen.y - 10) + 'px';
+  explainEl.style.display = 'block';
+  clearTimeout(showMatchExplanation._t);
+  showMatchExplanation._t = setTimeout(() => { explainEl.style.display = 'none'; }, 5000);
+}
+
+function worldToScreen(pos) {
+  const vector = pos.project(camera);
+  const rect = renderer.domElement.getBoundingClientRect();
+  return {
+    x: (vector.x + 1) / 2 * rect.width + rect.left,
+    y: (-vector.y + 1) / 2 * rect.height + rect.top
+  };
+}
+
+// ----- Match pulse -----
+function startMatchPulse(mesh) {
+  matchPulse = { mesh, t0: performance.now(), dur: 1400 };
+}
+
+function updateMatchPulse() {
+  if (!matchPulse) return;
+  const now = performance.now();
+  const t = (now - matchPulse.t0) / matchPulse.dur;
+  if (t >= 1) { 
+    matchPulse.mesh.scale.set(1, 1, 1); // Reset scale
+    matchPulse = null; 
+    return; 
+  }
+  const s = 1 + Math.sin(t * Math.PI) * 0.4;
+  matchPulse.mesh.scale.set(s, s, s);
+  
+  // Also pulse the glow intensity
+  matchPulse.mesh.traverse(child => {
+    if (child.material && child !== matchPulse.mesh.children[0]) {
+      const basePulse = Math.sin(t * Math.PI * 4) * 0.5 + 0.5;
+      child.material.opacity = child.material.opacity * (1 + basePulse * 0.3);
+    }
+  });
+}
+
+// ----- Ghost alternatives -----
+function drawGhostAlternatives(queryEmbedding, poolEmbeddings, bestIdx) {
+  const qNorm = vectorNorm(queryEmbedding);
+  const scores = poolEmbeddings.map((emb, i) => ({ i, s: cosineSimilarity(queryEmbedding, emb, qNorm) }));
+  scores.sort((a, b) => b.s - a.s);
+  const ghosts = scores.filter(x => x.i !== bestIdx).slice(0, 2);
+  ghosts.forEach(g => {
+    const target = entityIndexToMesh.get(g.i);
+    if (!target) return;
+    const col = entities[g.i].displayColor.clone().multiplyScalar(0.6);
+    const beam = createCurvedBeam(userDot.position.clone(), target.position.clone(), col, false, 12);
+    // make very faint
+    beam.object3d.traverse(obj => { if (obj.material) { obj.material.opacity = 0.25; }});
+    beamsGroup.add(beam.object3d);
+    activeBeamAnimations.add(beam);
+  });
+}
