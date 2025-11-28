@@ -57,13 +57,26 @@ canvas {
 main {
   padding: 20px;
 }
-#controls {
-  margin-bottom: 20px;
+#controls { display: none; }
+#wish-input label { display: none; }
+#wish-input input {
+  background: #000000;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  padding: 8px 10px;
+  border-radius: 4px;
 }
-label {
-  display: inline-block;
-  width: 150px;
+#wish-input input::placeholder {
+  color: #bdbdbd;
 }
-input[type="range"] {
-  width: 300px;
+#wish-input button {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #ffffff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+#wish-input button:hover {
+  background: rgba(255,255,255,0.08);
 }
