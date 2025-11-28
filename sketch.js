@@ -94,6 +94,14 @@ window.addEventListener('DOMContentLoaded', () => {
       submitBtn.textContent = 'Submit';
       submitBtn.style.opacity = '1';
     }
+    // Hide preload overlay
+    try {
+      const preload = document.getElementById('preload');
+      if (preload) {
+        preload.classList.add('hidden');
+        setTimeout(() => { try { preload.remove(); } catch (_) {} }, 600);
+      }
+    } catch (_) {}
     console.log('Application ready - submit button enabled');
   }).catch(error => {
     console.error('Failed to initialize application:', error);

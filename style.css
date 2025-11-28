@@ -6,6 +6,51 @@ html, body {
 
   background: #000000;
 }
+
+/* Preload overlay */
+#preload {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 500ms ease;
+}
+#preload.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.preload-card {
+  text-align: center;
+  max-width: 640px;
+  padding: 24px 20px;
+  line-height: 1.5;
+  animation: floatUp 900ms ease both;
+}
+.preload-title {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 8px;
+  letter-spacing: 0.4px;
+}
+.preload-body {
+  opacity: 0.9;
+  font-size: 13px;
+}
+.preload-hint {
+  margin-top: 14px;
+  font-size: 11px;
+  opacity: 0.7;
+  letter-spacing: 0.2px;
+}
+@keyframes floatUp {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
 canvas {
   display: block;
 }
