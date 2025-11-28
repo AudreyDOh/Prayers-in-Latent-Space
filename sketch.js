@@ -20,6 +20,8 @@ let db;
 if (typeof firebase !== 'undefined') {
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
+  // Ensure an auth context exists so RTDB rules with auth != null pass
+  try { firebase.auth && firebase.auth().signInAnonymously().catch(() => {}); } catch (_) {}
 } else {
   console.error('Firebase not loaded yet');
 }
